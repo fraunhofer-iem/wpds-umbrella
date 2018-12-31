@@ -1,6 +1,4 @@
 package typestate.dacapo;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.security.GeneralSecurityException;
@@ -23,6 +21,7 @@ import boomerang.jimple.Val;
 import boomerang.preanalysis.BoomerangPretransformer;
 import boomerang.results.ForwardBoomerangResults;
 import boomerang.weights.DataFlowPathWeight;
+import boomerang.weights.PathTrackingWeightFunctions;
 import boomerang.weights.WeightTuple;
 import experiments.google.spreadsheet.GoogleSpreadsheetWriter;
 import ideal.IDEALAnalysis;
@@ -51,7 +50,7 @@ public class IDEALRunner extends SootSceneSetupDacapo  {
   public IDEALRunner(String benchmarkFolder, String benchFolder) {
 		super(benchmarkFolder, benchFolder);
 	}
-	private Collection<WeightedForwardQuery<TransitionFunction>> printedSeeds = Sets.newHashSet();
+	private Collection<WeightedForwardQuery<WeightTuple<TransitionFunction,DataFlowPathWeight>>> printedSeeds = Sets.newHashSet();
 
 protected IDEALAnalysis<WeightTuple<TransitionFunction,DataFlowPathWeight>> createAnalysis() {
     String className = System.getProperty("rule");
@@ -60,9 +59,9 @@ protected IDEALAnalysis<WeightTuple<TransitionFunction,DataFlowPathWeight>> crea
 		BoomerangPretransformer.v().apply();
     	final JimpleBasedInterproceduralCFG icfg = new JimpleBasedInterproceduralCFG(false);
     	System.out.println("Reachable Methods" +  Scene.v().getReachableMethods().size());
-		final TypeStateMachineWeightFunctionsWithPath genericsType = (TypeStateMachineWeightFunctionsWithPath) Class.forName(className).getConstructor()
+		final TypeStateMachineWeightFunctions type = (TypeStateMachineWeightFunctions) Class.forName(className).getConstructor()
           .newInstance();
-		
+		TypeStateMachineWeightFunctionsWithPath genericsType = new TypeStateMachineWeightFunctionsWithPath(type, new PathTrackingWeightFunctions());
 		return new IDEALAnalysis<WeightTuple<TransitionFunction,DataFlowPathWeight>>(new IDEALAnalysisDefinition<WeightTuple<TransitionFunction,DataFlowPathWeight>>() {
 			
 
@@ -112,12 +111,12 @@ protected IDEALAnalysis<WeightTuple<TransitionFunction,DataFlowPathWeight>> crea
 			}
 			
 			@Override
-			public IDEALResultHandler<TransitionFunction> getResultHandler() {
-				return new IDEALResultHandler<TransitionFunction>() {
+			public IDEALResultHandler<WeightTuple<TransitionFunction,DataFlowPathWeight>> getResultHandler() {
+				return new IDEALResultHandler<WeightTuple<TransitionFunction,DataFlowPathWeight>>() {
 
 					@Override
-					public void report(WeightedForwardQuery<TransitionFunction> seed,
-							ForwardBoomerangResults<TransitionFunction> res) {
+					public void report(WeightedForwardQuery<WeightTuple<TransitionFunction,DataFlowPathWeight>> seed,
+							ForwardBoomerangResults<WeightTuple<TransitionFunction,DataFlowPathWeight>> res) {
 						if(!printedSeeds.add(seed))
 							return;
 						
@@ -188,7 +187,7 @@ private String outputFile;
     PackManager.v().getPack("wjtp").apply();
   }
 
-    private List<Object> asCSVLine(WeightedForwardQuery<TransitionFunction> key, ForwardBoomerangResults<TransitionFunction> forwardBoomerangResults) {
+    private List<Object> asCSVLine(WeightedForwardQuery<WeightTuple<TransitionFunction,DataFlowPathWeight>> key, ForwardBoomerangResults<WeightTuple<TransitionFunction,DataFlowPathWeight>> forwardBoomerangResults) {
     		//("Analysis;Rule;Seed;SeedStatement;SeedMethod;SeedClass;Is_In_Error;Timedout;AnalysisTimes;PropagationCount;VisitedMethod;ReachableMethods;CallRecursion;FieldLoop;MaxAccessPath\n");
     		String analysis = "ideal";
     		String rule = System.getProperty("ruleIdentifier");
@@ -209,10 +208,10 @@ private String outputFile;
         return Arrays.asList(new String[] {analysis,program,rule,key.toString(),seedStmt.toString(),seedMethod.toString(),seedClass.toString(),isInErrorState,isTimedout,analysisTime,propagationCount,visitedMethods,reachableMethods,containsCallLoop,containsFieldLoop, usedMemory});
     }
 
-    private boolean isInErrorState(WeightedForwardQuery<TransitionFunction> key, ForwardBoomerangResults<TransitionFunction> forwardBoomerangResults) {
-        Table<Statement, Val, TransitionFunction> objectDestructingStatements = forwardBoomerangResults.asStatementValWeightTable();
-        for(Table.Cell<Statement,Val,TransitionFunction> c : objectDestructingStatements.cellSet()){
-            for(ITransition t : c.getValue().values()){
+    private boolean isInErrorState(WeightedForwardQuery<WeightTuple<TransitionFunction,DataFlowPathWeight>> key, ForwardBoomerangResults<WeightTuple<TransitionFunction,DataFlowPathWeight>> forwardBoomerangResults) {
+        Table<Statement, Val, WeightTuple<TransitionFunction,DataFlowPathWeight>> objectDestructingStatements = forwardBoomerangResults.asStatementValWeightTable();
+        for(Table.Cell<Statement,Val,WeightTuple<TransitionFunction,DataFlowPathWeight>> c : objectDestructingStatements.cellSet()){
+            for(ITransition t : c.getValue().getA().values()){
                 if(t.to() != null){
                     if(t.to().isErrorState()){
                         return true;

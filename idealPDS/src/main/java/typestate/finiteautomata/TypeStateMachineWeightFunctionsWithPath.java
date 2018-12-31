@@ -26,7 +26,7 @@ import soot.Unit;
 import sync.pds.solver.WeightFunctions;
 import typestate.TransitionFunction;
 
-public abstract class TypeStateMachineWeightFunctionsWithPath extends  TupleWeightFunctions<TransitionFunction, DataFlowPathWeight> {
+public class TypeStateMachineWeightFunctionsWithPath extends  TupleWeightFunctions<TransitionFunction, DataFlowPathWeight> {
 	private TypeStateMachineWeightFunctions delegateA;
 	private WeightFunctions<Statement, Val, Statement, DataFlowPathWeight> delegateB;
 
@@ -34,6 +34,7 @@ public abstract class TypeStateMachineWeightFunctionsWithPath extends  TupleWeig
 			WeightFunctions<Statement, Val, Statement, DataFlowPathWeight> bFunc) {
 		super(aFunc, bFunc);
 		delegateA = aFunc;
+		delegateB = bFunc;
 	}
 
 	public Collection<WeightedForwardQuery<WeightTuple<TransitionFunction,DataFlowPathWeight>>> generateSeed(SootMethod method, Unit stmt,

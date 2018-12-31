@@ -61,4 +61,11 @@ public class WeightTuple<A extends Weight, B extends Weight> extends Weight {
 		return true;
 	}
 
+	public A getA() {
+		return a;
+	}
+
+	public B getB() {
+		return b;
+	}
 }

@@ -28,7 +28,6 @@ import soot.SootMethod;
 import soot.Unit;
 import soot.jimple.Stmt;
 import soot.jimple.toolkits.ide.icfg.BiDiInterproceduralCFG;
-import typestate.TransitionFunction;
 import wpds.impl.Weight;
 
 public class IDEALAnalysis<W extends Weight> {
@@ -105,11 +104,11 @@ public class IDEALAnalysis<W extends Weight> {
 		return seedFactory.computeSeeds();
 	}
 
-	public Stopwatch getAnalysisTime(WeightedForwardQuery<TransitionFunction> key) {
+	public Stopwatch getAnalysisTime(WeightedForwardQuery<W> key) {
 		return analysisTime.get(key);
 	}
 
-	public boolean isTimedout(WeightedForwardQuery<TransitionFunction> key) {
+	public boolean isTimedout(WeightedForwardQuery<W> key) {
 		return timedoutSeeds.contains(key);
 	}
 
