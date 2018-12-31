@@ -22,6 +22,8 @@ import boomerang.jimple.Statement;
 import boomerang.jimple.Val;
 import boomerang.preanalysis.BoomerangPretransformer;
 import boomerang.results.ForwardBoomerangResults;
+import boomerang.weights.DataFlowPathWeight;
+import boomerang.weights.WeightTuple;
 import experiments.google.spreadsheet.GoogleSpreadsheetWriter;
 import ideal.IDEALAnalysis;
 import ideal.IDEALAnalysisDefinition;
@@ -42,6 +44,7 @@ import sync.pds.solver.WeightFunctions;
 import typestate.TransitionFunction;
 import typestate.finiteautomata.ITransition;
 import typestate.finiteautomata.TypeStateMachineWeightFunctions;
+import typestate.finiteautomata.TypeStateMachineWeightFunctionsWithPath;
 
 public class IDEALRunner extends SootSceneSetupDacapo  {
 
@@ -50,28 +53,28 @@ public class IDEALRunner extends SootSceneSetupDacapo  {
 	}
 	private Collection<WeightedForwardQuery<TransitionFunction>> printedSeeds = Sets.newHashSet();
 
-protected IDEALAnalysis<TransitionFunction> createAnalysis() {
+protected IDEALAnalysis<WeightTuple<TransitionFunction,DataFlowPathWeight>> createAnalysis() {
     String className = System.getProperty("rule");
     try {
 		BoomerangPretransformer.v().reset();
 		BoomerangPretransformer.v().apply();
     	final JimpleBasedInterproceduralCFG icfg = new JimpleBasedInterproceduralCFG(false);
     	System.out.println("Reachable Methods" +  Scene.v().getReachableMethods().size());
-		final TypeStateMachineWeightFunctions genericsType = (TypeStateMachineWeightFunctions) Class.forName(className).getConstructor()
+		final TypeStateMachineWeightFunctionsWithPath genericsType = (TypeStateMachineWeightFunctionsWithPath) Class.forName(className).getConstructor()
           .newInstance();
 		
-		return new IDEALAnalysis<TransitionFunction>(new IDEALAnalysisDefinition<TransitionFunction>() {
+		return new IDEALAnalysis<WeightTuple<TransitionFunction,DataFlowPathWeight>>(new IDEALAnalysisDefinition<WeightTuple<TransitionFunction,DataFlowPathWeight>>() {
 			
 
 			@Override
-			public Collection<WeightedForwardQuery<TransitionFunction>> generate(SootMethod method, Unit stmt, Collection<SootMethod> calledMethod) {
+			public Collection<WeightedForwardQuery<WeightTuple<TransitionFunction,DataFlowPathWeight>>> generate(SootMethod method, Unit stmt, Collection<SootMethod> calledMethod) {
 				if(!method.getDeclaringClass().isApplicationClass())
 					return Collections.emptyList();
 				return genericsType.generateSeed(method, stmt, calledMethod);
 			}
 
 			@Override
-			public WeightFunctions<Statement, Val, Statement, TransitionFunction> weightFunctions() {
+			public WeightFunctions<Statement, Val, Statement, WeightTuple<TransitionFunction,DataFlowPathWeight>> weightFunctions() {
 				return genericsType;
 			}
 
@@ -101,7 +104,7 @@ protected IDEALAnalysis<TransitionFunction> createAnalysis() {
 				};
 			}
 			@Override
-			public Debugger<TransitionFunction> debugger(IDEALSeedSolver<TransitionFunction> solver) {
+			public Debugger<WeightTuple<TransitionFunction,DataFlowPathWeight>> debugger(IDEALSeedSolver<WeightTuple<TransitionFunction,DataFlowPathWeight>> solver) {
 				return new Debugger<>();
 //				File file = new File("idealDebugger/" + solver.getSeed());
 //				file.getParentFile().mkdirs();
@@ -151,7 +154,7 @@ protected IDEALAnalysis<TransitionFunction> createAnalysis() {
     return null;
   }
 
-  private IDEALAnalysis<TransitionFunction> analysis;
+  private IDEALAnalysis<WeightTuple<TransitionFunction, DataFlowPathWeight>> analysis;
   protected long analysisTime;
 private String outputFile;
 
@@ -222,7 +225,7 @@ private String outputFile;
     }
 
 
-    protected IDEALAnalysis<TransitionFunction> getAnalysis() {
+    protected IDEALAnalysis<WeightTuple<TransitionFunction,DataFlowPathWeight>> getAnalysis() {
     if (analysis == null)
       analysis = createAnalysis();
     return analysis;
