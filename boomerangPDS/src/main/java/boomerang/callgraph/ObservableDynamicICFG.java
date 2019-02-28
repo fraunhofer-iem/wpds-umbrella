@@ -48,6 +48,7 @@ import soot.jimple.SpecialInvokeExpr;
 import soot.jimple.Stmt;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.Edge;
+import soot.jimple.toolkits.ide.icfg.BiDiInterproceduralCFG;
 import soot.toolkits.exceptions.UnitThrowAnalysis;
 import soot.toolkits.graph.BriefUnitGraph;
 import soot.toolkits.graph.DirectedGraph;
@@ -82,53 +83,10 @@ public class ObservableDynamicICFG implements ObservableICFG<Unit, SootMethod> {
     private Multimap<Unit, CalleeListener<Unit, SootMethod>> calleeListeners = HashMultimap.create();
     private Multimap<SootMethod, CallerListener<Unit, SootMethod>> callerListeners = HashMultimap.create();
 
-    private final boolean enableExceptions;
+	private final BiDiInterproceduralCFG<Unit, SootMethod> delegate;
 
-    @DontSynchronize("written by single thread; read afterwards")
-    private final Map<Unit, Body> unitToOwner = new HashMap<>();
-
-    @SynchronizedBy("by use of synchronized LoadingCache class")
-    private final LoadingCache<Body, DirectedGraph<Unit>> bodyToUnitGraph = IDESolver.DEFAULT_CACHE_BUILDER
-            .build(new CacheLoader<Body, DirectedGraph<Unit>>() {
-                @Override
-                public DirectedGraph<Unit> load(Body body) {
-                    return makeGraph(body);
-                }
-
-                private DirectedGraph<Unit> makeGraph(Body body) {
-                    return enableExceptions ? new ExceptionalUnitGraph(body, UnitThrowAnalysis.v(), true)
-                            : new BriefUnitGraph(body);
-                }
-            });
-
-    @SynchronizedBy("by use of synchronized LoadingCache class")
-    private final LoadingCache<SootMethod, List<Value>> methodToParameterRefs = IDESolver.DEFAULT_CACHE_BUILDER
-            .build(new CacheLoader<SootMethod, List<Value>>() {
-                @Override
-                public List<Value> load(SootMethod m) {
-                    return m.getActiveBody().getParameterRefs();
-                }
-            });
-
-    @SynchronizedBy("by use of synchronized LoadingCache class")
-    private final LoadingCache<SootMethod, Set<Unit>> methodToCallsFromWithin = IDESolver.DEFAULT_CACHE_BUILDER
-            .build(new CacheLoader<SootMethod, Set<Unit>>() {
-                @Override
-                public Set<Unit> load(SootMethod m) {
-                    Set<Unit> res = null;
-                    for (Unit u : m.getActiveBody().getUnits()) {
-                        if (isCallStmt(u)) {
-                            if (res == null)
-                                res = new LinkedHashSet<>();
-                            res.add(u);
-                        }
-                    }
-                    return res == null ? Collections.emptySet() : res;
-                }
-            });
-
-    public ObservableDynamicICFG(boolean enableExceptions) {
-        this.enableExceptions = enableExceptions;
+    public ObservableDynamicICFG(BiDiInterproceduralCFG<Unit, SootMethod> delegate) {
+        this.delegate = delegate;
         this.solver = new Boomerang() {
             @Override
             public ObservableICFG<Unit, SootMethod> icfg() {
@@ -137,49 +95,28 @@ public class ObservableDynamicICFG implements ObservableICFG<Unit, SootMethod> {
         };
 
         this.precomputedCallGraph = Scene.v().getCallGraph();
-
-        initializeUnitToOwner();
     }
 
-    public ObservableDynamicICFG(WeightedBoomerang<? extends Weight> solver) {
-        this(solver, true);
-    }
-
-    public ObservableDynamicICFG(WeightedBoomerang<? extends Weight> solver, boolean enableExceptions) {
+    public ObservableDynamicICFG(WeightedBoomerang<? extends Weight> solver, BiDiInterproceduralCFG<Unit, SootMethod> delegate) {
         this.solver = solver;
-        this.enableExceptions = enableExceptions;
 
         this.precomputedCallGraph = Scene.v().getCallGraph();
-
-        initializeUnitToOwner();
+        this.delegate = delegate;
     }
 
     @Override
     public SootMethod getMethodOf(Unit unit) {
-        assert unitToOwner.containsKey(unit) : "Statement " + unit + " not in unit-to-owner mapping";
-        Body b = unitToOwner.get(unit);
-        return b == null ? null : b.getMethod();
+        return delegate.getMethodOf(unit);
     }
 
     @Override
     public List<Unit> getPredsOf(Unit unit) {
-        assert unit != null;
-        Body body = unitToOwner.get(unit);
-        DirectedGraph<Unit> unitGraph = getOrCreateUnitGraph(body);
-        return unitGraph.getPredsOf(unit);
+        return delegate.getPredsOf(unit);
     }
 
     @Override
     public List<Unit> getSuccsOf(Unit unit) {
-        Body body = unitToOwner.get(unit);
-        if (body == null)
-            return Collections.emptyList();
-        DirectedGraph<Unit> unitGraph = getOrCreateUnitGraph(body);
-        return unitGraph.getSuccsOf(unit);
-    }
-
-    private DirectedGraph<Unit> getOrCreateUnitGraph(Body body) {
-        return bodyToUnitGraph.getUnchecked(body);
+        return delegate.getSuccsOf(unit);
     }
 
     @Override
@@ -223,6 +160,7 @@ public class ObservableDynamicICFG implements ObservableICFG<Unit, SootMethod> {
         InvokeExpr invokeExpr = stmt.getInvokeExpr();
         Value value = ((InstanceInvokeExpr) invokeExpr).getBase();
         Val val = new Val(value, getMethodOf(stmt));
+        solver.checkTimeout();
         for (Unit pred : getPredsOf(stmt)) {
             Statement statement = new Statement((Stmt) pred, getMethodOf(unit));
 
@@ -390,17 +328,12 @@ public class ObservableDynamicICFG implements ObservableICFG<Unit, SootMethod> {
 
     @Override
     public Set<Unit> getCallsFromWithin(SootMethod sootMethod) {
-        return methodToCallsFromWithin.getUnchecked(sootMethod);
+        return delegate.getCallsFromWithin(sootMethod);
     }
 
     @Override
     public Collection<Unit> getStartPointsOf(SootMethod sootMethod) {
-        if (sootMethod.hasActiveBody()) {
-            Body body = sootMethod.getActiveBody();
-            DirectedGraph<Unit> unitGraph = getOrCreateUnitGraph(body);
-            return unitGraph.getHeads();
-        }
-        return Collections.emptySet();
+        return delegate.getStartPointsOf(sootMethod);
     }
 
     @Override
@@ -410,64 +343,39 @@ public class ObservableDynamicICFG implements ObservableICFG<Unit, SootMethod> {
 
     @Override
     public boolean isExitStmt(Unit unit) {
-        Body body = unitToOwner.get(unit);
-        DirectedGraph<Unit> unitGraph = getOrCreateUnitGraph(body);
-        return unitGraph.getTails().contains(unit);
+        return delegate.isExitStmt(unit);
     }
 
     @Override
     public boolean isStartPoint(Unit unit) {
-        Body body = unitToOwner.get(unit);
-        DirectedGraph<Unit> unitGraph = getOrCreateUnitGraph(body);
-        return unitGraph.getHeads().contains(unit);
+        return delegate.isStartPoint(unit);
     }
 
     @Override
     public Set<Unit> allNonCallStartNodes() {
-        Set<Unit> res = new LinkedHashSet<>(unitToOwner.keySet());
-        res.removeIf(u -> isStartPoint(u) || isCallStmt(u));
-        return res;
+        return delegate.allNonCallStartNodes();
     }
 
     @Override
     public Collection<Unit> getEndPointsOf(SootMethod sootMethod) {
-        if (sootMethod.hasActiveBody()) {
-            Body body = sootMethod.getActiveBody();
-            DirectedGraph<Unit> unitGraph = getOrCreateUnitGraph(body);
-            return unitGraph.getTails();
-        }
-        return Collections.emptySet();
+        return delegate.getEndPointsOf(sootMethod);
     }
 
     @Override
     public Set<Unit> allNonCallEndNodes() {
-        Set<Unit> res = new LinkedHashSet<>(unitToOwner.keySet());
-        res.removeIf(u -> isExitStmt(u) || isCallStmt(u));
-        return res;
+        return delegate.allNonCallEndNodes();
     }
 
     @Override
     public List<Value> getParameterRefs(SootMethod sootMethod) {
-        return methodToParameterRefs.getUnchecked(sootMethod);
+        return delegate.getParameterRefs(sootMethod);
     }
 
     @Override
     public boolean isReachable(Unit u) {
-        return unitToOwner.containsKey(u);
+        return delegate.isReachable(u);
     }
 
-    private void initializeUnitToOwner() {
-        for (Iterator<MethodOrMethodContext> iter = Scene.v().getReachableMethods().listener(); iter.hasNext();) {
-            SootMethod m = iter.next().method();
-            if (m.hasActiveBody()) {
-                Body b = m.getActiveBody();
-                PatchingChain<Unit> units = b.getUnits();
-                for (Unit unit : units) {
-                    unitToOwner.put(unit, b);
-                }
-            }
-        }
-    }
 
     public CallGraph getCallGraphCopy() {
         CallGraph copy = new CallGraph();

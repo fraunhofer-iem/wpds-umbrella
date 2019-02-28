@@ -85,6 +85,7 @@ public class AbstractBoomerangTest extends AbstractTestingFramework {
     private static final boolean VISUALIZATION = false;
 
     private ObservableICFG<Unit, SootMethod> dynamicIcfg;
+    private JimpleBasedInterproceduralCFG jimpleIcfg;
     private ObservableStaticICFG staticIcfg;
     private QueryForCallSiteDetector queryDetector;
     private Collection<? extends Query> allocationSites;
@@ -109,7 +110,8 @@ public class AbstractBoomerangTest extends AbstractTestingFramework {
 
             protected void internalTransform(String phaseName, @SuppressWarnings("rawtypes") Map options) {
                 BoomerangPretransformer.v().apply();
-                staticIcfg = new ObservableStaticICFG(new JimpleBasedInterproceduralCFG());
+                jimpleIcfg = new JimpleBasedInterproceduralCFG();
+                staticIcfg = new ObservableStaticICFG(jimpleIcfg);
                 queryDetector = new QueryForCallSiteDetector(staticIcfg);
                 queryForCallSites = queryDetector.computeSeeds();
 
@@ -341,7 +343,7 @@ public class AbstractBoomerangTest extends AbstractTestingFramework {
                 public ObservableICFG<Unit, SootMethod> icfg() {
                     if (dynamicIcfg == null) {
                         // dynamicIcfg = staticIcfg;
-                        dynamicIcfg = new ObservableDynamicICFG(this);
+                        dynamicIcfg = new ObservableDynamicICFG(this,jimpleIcfg);
                     }
                     return dynamicIcfg;
                 }
@@ -405,7 +407,7 @@ public class AbstractBoomerangTest extends AbstractTestingFramework {
             @Override
             public ObservableICFG<Unit, SootMethod> icfg() {
                 if (dynamicIcfg == null) {
-                    dynamicIcfg = new ObservableDynamicICFG(this);
+                    dynamicIcfg = new ObservableDynamicICFG(this, jimpleIcfg);
                 }
                 return dynamicIcfg;
             }

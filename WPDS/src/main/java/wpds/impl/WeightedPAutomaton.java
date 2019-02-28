@@ -785,4 +785,8 @@ public abstract class WeightedPAutomaton<N extends Location, D extends State, W 
         this.stateToReachabilityListener.clear();
         this.unbalancedPopListeners.clear();
     }
+
+	public Collection<Transition<N, D>> getTransitionsOutOf(D key) {
+		return transitionsOutOf.get(key);
+	}
 }

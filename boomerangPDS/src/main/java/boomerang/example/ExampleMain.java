@@ -25,6 +25,7 @@ import boomerang.seedfactory.SimpleSeedFactory;
 import soot.*;
 import soot.jimple.Stmt;
 import soot.jimple.toolkits.callgraph.ReachableMethods;
+import soot.jimple.toolkits.ide.icfg.JimpleBasedInterproceduralCFG;
 import soot.options.Options;
 import soot.util.queue.QueueReader;
 import wpds.impl.Weight.NoWeight;
@@ -113,7 +114,7 @@ public class ExampleMain {
                         return false;
                     }
                 }) {
-                    ObservableICFG<Unit, SootMethod> icfg = new ObservableDynamicICFG(this);
+                    ObservableICFG<Unit, SootMethod> icfg = new ObservableDynamicICFG(new JimpleBasedInterproceduralCFG());
 
                     @Override
                     public ObservableICFG<Unit, SootMethod> icfg() {

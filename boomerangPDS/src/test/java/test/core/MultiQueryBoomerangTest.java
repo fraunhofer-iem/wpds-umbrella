@@ -51,6 +51,7 @@ public class MultiQueryBoomerangTest extends AbstractTestingFramework {
     public Timeout timeout = new Timeout(10000000);
     private ObservableICFG<Unit, SootMethod> dynamicIcfg;
     private ObservableStaticICFG staticIcfg;
+    private JimpleBasedInterproceduralCFG jimpeIcfg;
     private Collection<? extends Query> allocationSites;
     protected Collection<? extends Query> queryForCallSites;
     protected Multimap<Query, Query> expectedAllocsForQuery = HashMultimap.create();
@@ -67,7 +68,8 @@ public class MultiQueryBoomerangTest extends AbstractTestingFramework {
 
             protected void internalTransform(String phaseName, @SuppressWarnings("rawtypes") Map options) {
                 BoomerangPretransformer.v().apply();
-                staticIcfg = new ObservableStaticICFG(new JimpleBasedInterproceduralCFG());
+                jimpeIcfg = new JimpleBasedInterproceduralCFG();
+                staticIcfg = new ObservableStaticICFG(jimpeIcfg);
                 seedFactory = new SeedFactory<Weight.NoWeight>() {
 
                     @Override
@@ -205,7 +207,7 @@ public class MultiQueryBoomerangTest extends AbstractTestingFramework {
             @Override
             public ObservableICFG<Unit, SootMethod> icfg() {
                 if (dynamicIcfg == null) {
-                    dynamicIcfg = new ObservableDynamicICFG(this);
+                    dynamicIcfg = new ObservableDynamicICFG(this, jimpeIcfg);
                 }
                 return dynamicIcfg;
             }

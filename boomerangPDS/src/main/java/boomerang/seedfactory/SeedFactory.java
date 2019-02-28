@@ -13,6 +13,8 @@ package boomerang.seedfactory;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -20,17 +22,21 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 
 import boomerang.Query;
 import boomerang.callgraph.CalleeListener;
 import boomerang.callgraph.ObservableICFG;
+import soot.MethodOrMethodContext;
 import soot.Scene;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.Unit;
 import soot.jimple.Stmt;
+import soot.jimple.toolkits.callgraph.ReachableMethods;
+import soot.util.queue.QueueReader;
 import sync.pds.solver.nodes.GeneratedState;
 import sync.pds.solver.nodes.INode;
 import sync.pds.solver.nodes.SingleNode;
@@ -48,8 +54,8 @@ import wpds.interfaces.WPAUpdateListener;
  */
 public abstract class SeedFactory<W extends Weight> {
 
-    private final WeightedPushdownSystem<Method, INode<Reachable>, Weight.NoWeight> pds = new WeightedPushdownSystem<>();
     private final Multimap<Query, Transition<Method, INode<Reachable>>> seedToTransition = HashMultimap.create();
+    private final Multimap<SootMethod, Transition<Method, INode<Reachable>>> seedMethodToTransition = HashMultimap.create();
     private final Multimap<SootMethod, Query> seedsPerMethod = HashMultimap.create();
     private final Map<Method, INode<Reachable>> reachableMethods = new HashMap<Method, INode<Reachable>>();
     private final WeightedPAutomaton<Method, INode<Reachable>, Weight.NoWeight> automaton = new WeightedPAutomaton<Method, INode<Reachable>, Weight.NoWeight>(
@@ -83,7 +89,8 @@ public abstract class SeedFactory<W extends Weight> {
         }
     };
     private Collection<SootMethod> processed = Sets.newHashSet();
-    private Multimap<Query, SootMethod> queryToScope = HashMultimap.create();
+    private Multimap<SootMethod, SootMethod> queryToScope = HashMultimap.create();
+	private Set<SootMethod> reachable;
 
     public Collection<Query> computeSeeds() {
         List<SootMethod> entryPoints = Scene.v().getEntryPoints();
@@ -110,6 +117,7 @@ public abstract class SeedFactory<W extends Weight> {
         }
         System.out.print("Seed finding took " + watch.elapsed(TimeUnit.SECONDS) + " second(s) and analyzed "
                 + processed.size() + " method(s).");
+        automaton.clearListener();
         return seedToTransition.keySet();
     }
 
@@ -137,6 +145,7 @@ public abstract class SeedFactory<W extends Weight> {
         computeQueriesPerMethod(m);
         for (Query q : seedsPerMethod.get(m)) {
             seedToTransition.put(q, t);
+            seedMethodToTransition.put(m, t);
         }
     }
 
@@ -179,74 +188,44 @@ public abstract class SeedFactory<W extends Weight> {
     public abstract ObservableICFG<Unit, SootMethod> icfg();
 
     public Collection<SootMethod> getMethodScope(Query query) {
+    	if(reachable != null)
+    		return reachable;
+    	ReachableMethods rm = Scene.v().getReachableMethods();
+    	QueueReader<MethodOrMethodContext> l = rm.listener();
+    	reachable = Sets.newHashSet();
+    	
+    	while(l.hasNext()) {
+    		MethodOrMethodContext next = l.next();
+    		reachable.add(next.method());
+    	}
+    	return reachable;
+//        if (queryToScope.containsKey(query.stmt().getMethod())) {
+//            return queryToScope.get(query.stmt().getMethod());
+//        }
+//        queryToScope.putAll(query.stmt().getMethod(), transitiveClosure(query.stmt().getMethod()));
+//        return queryToScope.get(query.stmt().getMethod());
+    }
+
+    private Set<SootMethod> transitiveClosure(SootMethod m) {
         Set<SootMethod> scope = Sets.newHashSet();
-        if (queryToScope.containsKey(query)) {
-            return queryToScope.get(query);
+    	Set<INode<Reachable>> visited = Sets.newHashSet();
+    	LinkedList<INode<Reachable>> worklist = Lists.newLinkedList();
+        for (Transition<Method, INode<Reachable>> t : seedMethodToTransition.get(m)) {
+        	worklist.add(t.getTarget());
         }
-        for (Transition<Method, INode<Reachable>> t : seedToTransition.get(query)) {
-            scope.add(t.getLabel().getMethod());
-            automaton.registerListener(new TransitiveClosure(t.getTarget(), scope, query));
-        }
-        queryToScope.putAll(query, scope);
-        return scope;
+    	while(!worklist.isEmpty()) {
+    		INode<Reachable> first = worklist.pop();
+    		visited.add(first);
+    		for(Transition<Method, INode<Reachable>> t : automaton.getTransitionsOutOf(first)) {
+    			if(!visited.contains(t.getTarget())) {
+    				worklist.add(t.getTarget());
+    			}
+    			scope.add(t.getLabel().getMethod());
+    		}
+    	}
+    	return scope;
     }
 
-    private class TransitiveClosure extends WPAStateListener<Method, INode<Reachable>, Weight.NoWeight> {
-
-        private final Set<SootMethod> scope;
-        private Query query;
-
-        public TransitiveClosure(INode<Reachable> start, Set<SootMethod> scope, Query query) {
-            super(start);
-            this.scope = scope;
-            this.query = query;
-        }
-
-        @Override
-        public void onOutTransitionAdded(Transition<Method, INode<Reachable>> t, NoWeight w,
-                WeightedPAutomaton<Method, INode<Reachable>, NoWeight> weightedPAutomaton) {
-            scope.add(t.getLabel().getMethod());
-            automaton.registerListener(new TransitiveClosure(t.getTarget(), scope, query));
-        }
-
-        @Override
-        public void onInTransitionAdded(Transition<Method, INode<Reachable>> t, NoWeight w,
-                WeightedPAutomaton<Method, INode<Reachable>, NoWeight> weightedPAutomaton) {
-
-        }
-
-        @Override
-        public int hashCode() {
-            final int prime = 31;
-            int result = super.hashCode();
-            result = prime * result + getOuterType().hashCode();
-            result = prime * result + ((query == null) ? 0 : query.hashCode());
-            return result;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj)
-                return true;
-            if (!super.equals(obj))
-                return false;
-            if (getClass() != obj.getClass())
-                return false;
-            TransitiveClosure other = (TransitiveClosure) obj;
-            if (!getOuterType().equals(other.getOuterType()))
-                return false;
-            if (query == null) {
-                if (other.query != null)
-                    return false;
-            } else if (!query.equals(other.query))
-                return false;
-            return true;
-        }
-
-        private SeedFactory getOuterType() {
-            return SeedFactory.this;
-        }
-    }
 
     public Collection<SootMethod> getAnyMethodScope() {
         Set<SootMethod> out = Sets.newHashSet();

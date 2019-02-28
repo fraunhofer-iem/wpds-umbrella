@@ -1413,5 +1413,7 @@ public abstract class WeightedBoomerang<W extends Weight> {
     public BoomerangOptions getOptions() {
         return this.options;
     }
+    
+    
 
 }
