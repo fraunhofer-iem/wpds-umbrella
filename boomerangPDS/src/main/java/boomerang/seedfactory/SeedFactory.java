@@ -13,7 +13,6 @@ package boomerang.seedfactory;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -29,14 +28,11 @@ import com.google.common.collect.Sets;
 import boomerang.Query;
 import boomerang.callgraph.CalleeListener;
 import boomerang.callgraph.ObservableICFG;
-import soot.MethodOrMethodContext;
 import soot.Scene;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.Unit;
 import soot.jimple.Stmt;
-import soot.jimple.toolkits.callgraph.ReachableMethods;
-import soot.util.queue.QueueReader;
 import sync.pds.solver.nodes.GeneratedState;
 import sync.pds.solver.nodes.INode;
 import sync.pds.solver.nodes.SingleNode;
@@ -55,7 +51,6 @@ import wpds.interfaces.WPAUpdateListener;
 public abstract class SeedFactory<W extends Weight> {
 
     private final Multimap<Query, Transition<Method, INode<Reachable>>> seedToTransition = HashMultimap.create();
-    private final Multimap<SootMethod, Transition<Method, INode<Reachable>>> seedMethodToTransition = HashMultimap.create();
     private final Multimap<SootMethod, Query> seedsPerMethod = HashMultimap.create();
     private final Map<Method, INode<Reachable>> reachableMethods = new HashMap<Method, INode<Reachable>>();
     private final WeightedPAutomaton<Method, INode<Reachable>, Weight.NoWeight> automaton = new WeightedPAutomaton<Method, INode<Reachable>, Weight.NoWeight>(
@@ -89,8 +84,7 @@ public abstract class SeedFactory<W extends Weight> {
         }
     };
     private Collection<SootMethod> processed = Sets.newHashSet();
-    private Multimap<SootMethod, SootMethod> queryToScope = HashMultimap.create();
-	private Set<SootMethod> reachable;
+    private Multimap<Query, SootMethod> queryToScope = HashMultimap.create();
 
     public Collection<Query> computeSeeds() {
         List<SootMethod> entryPoints = Scene.v().getEntryPoints();
@@ -145,7 +139,6 @@ public abstract class SeedFactory<W extends Weight> {
         computeQueriesPerMethod(m);
         for (Query q : seedsPerMethod.get(m)) {
             seedToTransition.put(q, t);
-            seedMethodToTransition.put(m, t);
         }
     }
 
@@ -188,29 +181,18 @@ public abstract class SeedFactory<W extends Weight> {
     public abstract ObservableICFG<Unit, SootMethod> icfg();
 
     public Collection<SootMethod> getMethodScope(Query query) {
-    	if(reachable != null)
-    		return reachable;
-    	ReachableMethods rm = Scene.v().getReachableMethods();
-    	QueueReader<MethodOrMethodContext> l = rm.listener();
-    	reachable = Sets.newHashSet();
-    	
-    	while(l.hasNext()) {
-    		MethodOrMethodContext next = l.next();
-    		reachable.add(next.method());
-    	}
-    	return reachable;
-//        if (queryToScope.containsKey(query.stmt().getMethod())) {
-//            return queryToScope.get(query.stmt().getMethod());
-//        }
-//        queryToScope.putAll(query.stmt().getMethod(), transitiveClosure(query.stmt().getMethod()));
-//        return queryToScope.get(query.stmt().getMethod());
+        if (queryToScope.containsKey(query)) {
+            return queryToScope.get(query);
+        }
+        queryToScope.putAll(query, transitiveClosure(query));
+        return queryToScope.get(query);
     }
 
-    private Set<SootMethod> transitiveClosure(SootMethod m) {
+    private Set<SootMethod> transitiveClosure(Query query) {
         Set<SootMethod> scope = Sets.newHashSet();
     	Set<INode<Reachable>> visited = Sets.newHashSet();
     	LinkedList<INode<Reachable>> worklist = Lists.newLinkedList();
-        for (Transition<Method, INode<Reachable>> t : seedMethodToTransition.get(m)) {
+        for (Transition<Method, INode<Reachable>> t : seedToTransition.get(query)) {
         	worklist.add(t.getTarget());
         }
     	while(!worklist.isEmpty()) {
