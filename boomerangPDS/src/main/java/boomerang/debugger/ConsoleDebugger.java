@@ -23,9 +23,9 @@ public class ConsoleDebugger<W extends Weight> extends Debugger<W> {
             logger.debug(q);
             logger.debug("========================");
             queryToSolvers.get(q).debugOutput();
-            for (SootMethod m : queryToSolvers.get(q).getReachableMethods()) {
-                logger.debug(m + "\n" + Joiner.on("\n\t").join(queryToSolvers.get(q).getResults(m).cellSet()));
-            }
+//            for (SootMethod m : queryToSolvers.get(q).getReachableMethods()) {
+//                logger.debug(m + "\n" + Joiner.on("\n\t").join(queryToSolvers.get(q).getResults(m).cellSet()));
+//            }
             queryToSolvers.get(q).debugOutput();
         }
     };

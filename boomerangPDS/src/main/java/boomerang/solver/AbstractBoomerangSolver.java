@@ -178,7 +178,6 @@ public abstract class AbstractBoomerangSolver<W extends Weight> extends SyncPDSS
             .create();
     private Set<ReachableMethodListener<W>> reachableMethodListeners = Sets.newHashSet();
     private Multimap<SootMethod, Runnable> queuedReachableMethod = HashMultimap.create();
-    private Collection<SootMethod> reachableMethods = Sets.newHashSet();
     protected final BoomerangOptions options;
 
     public AbstractBoomerangSolver(ObservableICFG<Unit, SootMethod> icfg, Query query,
@@ -209,7 +208,6 @@ public abstract class AbstractBoomerangSolver<W extends Weight> extends SyncPDSS
         });
         // TODO recap, I assume we can implement this more easily.
         this.generatedFieldState = genField;
-        addReachable(query.asNode().stmt().getMethod());
     }
 
     @Override
@@ -631,32 +629,8 @@ public abstract class AbstractBoomerangSolver<W extends Weight> extends SyncPDSS
         return false;
     }
 
-    public void addReachable(SootMethod m) {
-        if (reachableMethods.add(m)) {
-            Collection<Runnable> collection = Lists.newArrayList(queuedReachableMethod.get(m));
-            for (Runnable runnable : collection) {
-                runnable.run();
-            }
-            for (ReachableMethodListener<W> l : Lists.newArrayList(reachableMethodListeners)) {
-                l.reachable(m);
-            }
-        }
-    }
-
     public void submit(SootMethod method, Runnable runnable) {
-        if (reachableMethods.contains(method) || !options.onTheFlyCallGraph()) {
-            runnable.run();
-        } else {
-            queuedReachableMethod.put(method, runnable);
-        }
-    }
-
-    public void registerReachableMethodListener(ReachableMethodListener<W> reachableMethodListener) {
-        if (reachableMethodListeners.add(reachableMethodListener)) {
-            for (SootMethod m : Lists.newArrayList(reachableMethods)) {
-                reachableMethodListener.reachable(m);
-            }
-        }
+        runnable.run();
     }
 
     public Map<RegExAccessPath, W> getResultsAt(final Statement stmt) {
@@ -726,10 +700,6 @@ public abstract class AbstractBoomerangSolver<W extends Weight> extends SyncPDSS
                 }
             }
         });
-    }
-
-    public Collection<SootMethod> getReachableMethods() {
-        return reachableMethods;
     }
 
     public void cleanup() {

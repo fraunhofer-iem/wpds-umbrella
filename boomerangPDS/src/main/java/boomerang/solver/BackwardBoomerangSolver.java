@@ -97,7 +97,6 @@ public abstract class BackwardBoomerangSolver<W extends Weight> extends Abstract
             for (State o : out) {
                 BackwardBoomerangSolver.this.propagate(curr, o);
             }
-            addReachable(callee);
             // if(Scene.v().isExcluded(callee.getDeclaringClass())) {
             // calleeExcluded = true;
             // }

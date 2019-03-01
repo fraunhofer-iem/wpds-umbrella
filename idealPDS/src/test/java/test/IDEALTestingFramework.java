@@ -91,13 +91,7 @@ public abstract class IDEALTestingFramework extends AbstractTestingFramework {
 
             @Override
             public BoomerangOptions boomerangOptions() {
-                return new DefaultBoomerangOptions() {
-
-                    @Override
-                    public boolean onTheFlyCallGraph() {
-                        return false;
-                    }
-                };
+                return new DefaultBoomerangOptions();
             }
 
         });

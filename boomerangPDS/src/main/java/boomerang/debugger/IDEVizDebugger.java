@@ -92,24 +92,25 @@ public class IDEVizDebugger<W extends Weight> extends Debugger<W> {
             Query query = e.getKey();
             JSONQuery queryJSON = new JSONQuery(query);
             JSONArray data = new JSONArray();
-            for (SootMethod m : Lists.newArrayList(e.getValue().getReachableMethods())) {
-                Table<Statement, RegExAccessPath, W> results = e.getValue().getResults(m);
-                if (results.isEmpty())
-                    continue;
-                int labelYOffset = ONLY_CFG ? 0 : computeLabelYOffset(results.columnKeySet());
-                JSONMethod jsonMethod = new JSONMethod(m);
-                logger.debug("Creating control-flow graph for {}", m);
-                IDEVizDebugger<W>.JSONControlFlowGraph cfg = createControlFlowGraph(m, labelYOffset);
-
-                jsonMethod.put("cfg", cfg);
-                if (!ONLY_CFG) {
-                    Set<Rule<Statement, INode<Val>, W>> rulesInMethod = getOrCreateRuleSet(query, m);
-                    logger.debug("Creating data-flow graph for {}", m);
-                    DataFlowGraph dfg = createDataFlowGraph(query, results, rulesInMethod, cfg, m, labelYOffset);
-                    jsonMethod.put("dfg", dfg);
-                }
-                data.add(jsonMethod);
-            }
+            //TODO get solver 
+//            for (SootMethod m : Lists.newArrayList(e.getValue().getReachableMethods())) {
+//                Table<Statement, RegExAccessPath, W> results = e.getValue().getResults(m);
+//                if (results.isEmpty())
+//                    continue;
+//                int labelYOffset = ONLY_CFG ? 0 : computeLabelYOffset(results.columnKeySet());
+//                JSONMethod jsonMethod = new JSONMethod(m);
+//                logger.debug("Creating control-flow graph for {}", m);
+//                IDEVizDebugger<W>.JSONControlFlowGraph cfg = createControlFlowGraph(m, labelYOffset);
+//
+//                jsonMethod.put("cfg", cfg);
+//                if (!ONLY_CFG) {
+//                    Set<Rule<Statement, INode<Val>, W>> rulesInMethod = getOrCreateRuleSet(query, m);
+//                    logger.debug("Creating data-flow graph for {}", m);
+//                    DataFlowGraph dfg = createDataFlowGraph(query, results, rulesInMethod, cfg, m, labelYOffset);
+//                    jsonMethod.put("dfg", dfg);
+//                }
+//                data.add(jsonMethod);
+//            }
             queryJSON.put("methods", data);
             eventualData.add(queryJSON);
         }

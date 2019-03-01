@@ -30,8 +30,6 @@ public interface BoomerangOptions {
 
     public boolean typeCheck();
 
-    public boolean onTheFlyCallGraph();
-
     public boolean throwFlows();
 
     public boolean callSummaries();

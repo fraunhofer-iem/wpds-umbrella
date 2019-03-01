@@ -107,13 +107,7 @@ public class ExampleMain {
             protected void internalTransform(String phaseName, @SuppressWarnings("rawtypes") Map options) {
 
                 // 1. Create a Boomerang solver.
-                Boomerang solver = new Boomerang(new DefaultBoomerangOptions() {
-                    @Override
-                    public boolean onTheFlyCallGraph() {
-                        // Must be turned off if no SeedFactory is specified.
-                        return false;
-                    }
-                }) {
+                Boomerang solver = new Boomerang(new DefaultBoomerangOptions()) {
                     ObservableICFG<Unit, SootMethod> icfg = new ObservableDynamicICFG(new JimpleBasedInterproceduralCFG());
 
                     @Override

@@ -185,11 +185,6 @@ public abstract class WeightedBoomerang<W extends Weight> {
                 }
             });
             SeedFactory<W> seedFactory = getSeedFactory();
-            if (seedFactory != null) {
-                for (SootMethod m : seedFactory.getMethodScope(key)) {
-                    solver.addReachable(m);
-                }
-            }
             onCreateSubSolver(solver);
             return solver;
         }
@@ -316,13 +311,6 @@ public abstract class WeightedBoomerang<W extends Weight> {
                 if (allocNode.isPresent()) {
                     ForwardQuery q = new ForwardQuery(node.stmt(), allocNode.get());
                     final AbstractBoomerangSolver<W> forwardSolver = forwardSolve(q);
-                    solver.registerReachableMethodListener(new ReachableMethodListener<W>() {
-
-                        @Override
-                        public void reachable(SootMethod m) {
-                            forwardSolver.addReachable(m);
-                        }
-                    });
                 }
                 if (isFieldStore(node.stmt())) {
                 } else if (isArrayLoad(node.stmt())) {
@@ -338,7 +326,6 @@ public abstract class WeightedBoomerang<W extends Weight> {
                     StaticFieldVal val = (StaticFieldVal) node.fact();
                     for (SootMethod m : val.field().getDeclaringClass().getMethods()) {
                         if (m.isStaticInitializer()) {
-                            solver.addReachable(m);
                             for (Unit ep : icfg().getEndPointsOf(m)) {
                                 StaticFieldVal newVal = new StaticFieldVal(val.value(), val.field(), m);
                                 solver.addNormalCallFlow(node,
@@ -612,12 +599,6 @@ public abstract class WeightedBoomerang<W extends Weight> {
             backwardSolve(backwardQuery);
             final AbstractBoomerangSolver<W> bwSolver = queryToSolvers.getOrCreate(backwardQuery);
             AbstractBoomerangSolver<W> fwSolver = queryToSolvers.getOrCreate(forwardQuery);
-            fwSolver.registerReachableMethodListener(new ReachableMethodListener<W>() {
-                @Override
-                public void reachable(SootMethod m) {
-                    bwSolver.addReachable(m);
-                }
-            });
 
             fwSolver.getCallAutomaton().registerListener(new StackListener<Statement, INode<Val>, W>(
                     fwSolver.getCallAutomaton(), new SingleNode<>(node.fact()), node.stmt()) {
@@ -784,7 +765,6 @@ public abstract class WeightedBoomerang<W extends Weight> {
         public void onReachableNodeAdded(Node<Statement, Val> reachableNode) {
             if (startPointsOf.contains(reachableNode.stmt().getUnit().get())) {
                 Node<Statement, AbstractBoomerangSolver<W>> solverPair = new Node<>(callSite.getStmt(), bwSolver);
-                bwSolver.addReachable(callSite.getStmt().getMethod());
                 triggerUnbalancedPop(solverPair);
                 for (Context parent : req.getCallSiteOf(callSite)) {
                     bwSolver.registerListener(

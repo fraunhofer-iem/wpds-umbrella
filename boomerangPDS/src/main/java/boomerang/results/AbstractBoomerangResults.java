@@ -78,7 +78,7 @@ public class AbstractBoomerangResults<W extends Weight> {
             if (t.getTarget().fact().isUnbalanced()) {
                 context.addUnbalancedNodes(t.getTarget());
             }
-            if (t.getLabel().getMethod() != null && solver.getReachableMethods().contains(t.getLabel().getMethod())) {
+            if (t.getLabel().getMethod() != null) {
                 if (t.getStart() instanceof GeneratedState) {
                     context.getOpeningContext()
                             .addTransition(new Transition<Statement, INode<Val>>(source, t.getLabel(), t.getTarget()));

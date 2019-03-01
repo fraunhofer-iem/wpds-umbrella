@@ -62,11 +62,6 @@ public class FromFileBoomerangOptions extends DefaultBoomerangOptions {
     }
 
     @Override
-    public boolean onTheFlyCallGraph() {
-        return getBooleanFromFile("on-the-fly-cg");
-    }
-
-    @Override
     public boolean throwFlows() {
         return false;
     }

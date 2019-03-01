@@ -332,11 +332,6 @@ public class AbstractBoomerangTest extends AbstractTestingFramework {
                         public int analysisTimeoutMS() {
                             return analysisTimeout;
                         }
-
-                        @Override
-                        public boolean onTheFlyCallGraph() {
-                            return false;
-                        }
                     });
             Boomerang solver = new Boomerang(options) {
                 @Override
@@ -397,11 +392,6 @@ public class AbstractBoomerangTest extends AbstractTestingFramework {
             @Override
             public int analysisTimeoutMS() {
                 return analysisTimeout;
-            }
-
-            @Override
-            public boolean onTheFlyCallGraph() {
-                return false;
             }
         }) {
             @Override

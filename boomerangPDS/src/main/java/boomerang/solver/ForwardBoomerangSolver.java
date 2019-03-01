@@ -144,7 +144,6 @@ public abstract class ForwardBoomerangSolver<W extends Weight> extends AbstractB
                     propagate(currNode, s);
                 }
             }
-            addReachable(callee);
 
             // if(Scene.v().isExcluded(callee.getDeclaringClass())) {
             // calleeExcluded = true;

@@ -197,11 +197,6 @@ public class MultiQueryBoomerangTest extends AbstractTestingFramework {
             public int analysisTimeoutMS() {
                 return analysisTimeout;
             }
-
-            @Override
-            public boolean onTheFlyCallGraph() {
-                return false;
-            }
         };
         solver = new Boomerang(options) {
             @Override
