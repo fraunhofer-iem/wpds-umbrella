@@ -31,6 +31,7 @@ import com.google.common.collect.Table;
 
 import boomerang.BoomerangOptions;
 import boomerang.Query;
+import boomerang.Util;
 import boomerang.callgraph.CallerListener;
 import boomerang.callgraph.ObservableICFG;
 import boomerang.jimple.AllocVal;
@@ -630,7 +631,11 @@ public abstract class AbstractBoomerangSolver<W extends Weight> extends SyncPDSS
     }
 
     public void submit(SootMethod method, Runnable runnable) {
-        runnable.run();
+    	if(Util.isReachableMethod(method)) {
+    		runnable.run();
+    	} else {
+    		System.out.println("UNREACHEBLE METHOD ");
+    	}
     }
 
     public Map<RegExAccessPath, W> getResultsAt(final Statement stmt) {

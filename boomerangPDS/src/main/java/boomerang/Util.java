@@ -3,6 +3,9 @@ package boomerang;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.util.List;
+import java.util.Set;
+
+import com.google.common.collect.Sets;
 
 import boomerang.jimple.Statement;
 import boomerang.jimple.Val;
@@ -20,6 +23,7 @@ import soot.util.queue.QueueReader;
 
 public class Util {
     private static int icfgEdges;
+	private static Set<SootMethod> reachableMethods;
 
     public static boolean isParameterLocal(Val val, SootMethod m) {
         if (val.isStatic())
@@ -98,5 +102,19 @@ public class Util {
         return ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed();
         // + ManagementFactory.getMemoryMXBean().getNonHeapMemoryUsage().getUsed();
     }
+    
+    public static boolean isReachableMethod(SootMethod m) {
+    	if(reachableMethods == null) {
+    		reachableMethods = Sets.newHashSet();
+    		ReachableMethods rm = Scene.v().getReachableMethods();
+    		QueueReader<MethodOrMethodContext> l = rm.listener();
+    		while(l.hasNext()) {
+    			reachableMethods.add(l.next().method());
+    		}
+    	}
+    	
+    	return reachableMethods.contains(m);
+    }
+
 
 }

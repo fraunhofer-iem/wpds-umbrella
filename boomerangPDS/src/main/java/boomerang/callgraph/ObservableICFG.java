@@ -107,7 +107,7 @@ public interface ObservableICFG<N, M> {
      *         otherwise false
      */
     boolean isReachable(N u);
-
+    
     CallGraph getCallGraphCopy();
 
     boolean isMethodsWithCallFlow(SootMethod method);

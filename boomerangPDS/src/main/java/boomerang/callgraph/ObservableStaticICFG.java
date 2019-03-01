@@ -1,5 +1,6 @@
 package boomerang.callgraph;
 
+import soot.MethodOrMethodContext;
 import soot.Scene;
 import soot.SootMethod;
 import soot.Unit;
@@ -7,12 +8,16 @@ import soot.Value;
 import soot.jimple.Stmt;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.Edge;
+import soot.jimple.toolkits.callgraph.ReachableMethods;
 import soot.jimple.toolkits.ide.icfg.BiDiInterproceduralCFG;
+import soot.util.queue.QueueReader;
 
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import com.google.common.collect.Sets;
 
 /**
  * An interprocedural control-flow graph, for which caller-callee edges can be observed using {@link CalleeListener} and
@@ -27,6 +32,7 @@ public class ObservableStaticICFG implements ObservableICFG<Unit, SootMethod> {
      * Wrapped static ICFG. If available, this is used to handle all queries.
      */
     private BiDiInterproceduralCFG<Unit, SootMethod> precomputedGraph;
+	private Set<SootMethod> reachableMethods;
 
     public ObservableStaticICFG(BiDiInterproceduralCFG<Unit, SootMethod> icfg) {
         this.precomputedGraph = icfg;
@@ -115,7 +121,7 @@ public class ObservableStaticICFG implements ObservableICFG<Unit, SootMethod> {
     public boolean isReachable(Unit u) {
         return precomputedGraph.isReachable(u);
     }
-
+    
     public CallGraph getCallGraphCopy() {
         CallGraph copy = new CallGraph();
         HashSet<SootMethod> visited = new HashSet<>();
