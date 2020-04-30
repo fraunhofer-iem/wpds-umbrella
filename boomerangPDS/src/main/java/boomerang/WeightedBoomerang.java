@@ -194,6 +194,48 @@ public abstract class WeightedBoomerang<W extends Weight> {
         }
     };
 
+    protected class DefaultForwardBoomerangSolver extends ForwardBoomerangSolver<W> {
+
+    	protected final ForwardQuery sourceQuery;
+
+		public DefaultForwardBoomerangSolver(ForwardQuery sourceQuery) {
+			super(icfg(), sourceQuery, genField, WeightedBoomerang.this.options,
+					createCallSummaries(sourceQuery, forwardCallSummaries),
+					createFieldSummaries(sourceQuery, forwardFieldSummaries));
+			this.sourceQuery = sourceQuery;
+		}
+
+		@Override
+        protected Collection<? extends State> getEmptyCalleeFlow(SootMethod caller, Stmt callSite, Val value,
+                Stmt returnSite) {
+            return forwardEmptyCalleeFlow.getEmptyCalleeFlow(caller, callSite, value, returnSite);
+        }
+
+        @Override
+        protected WeightFunctions<Statement, Val, Statement, W> getCallWeights() {
+            return WeightedBoomerang.this.getForwardCallWeights(sourceQuery);
+        }
+
+        @Override
+        protected WeightFunctions<Statement, Val, Field, W> getFieldWeights() {
+            return WeightedBoomerang.this.getForwardFieldWeights();
+        }
+
+        @Override
+        public void addCallRule(Rule<Statement, INode<Val>, W> rule) {
+            if (preventCallRuleAdd(sourceQuery, rule)) {
+                return;
+            }
+            super.addCallRule(rule);
+        }
+
+        @Override
+        protected void onManyStateListenerRegister() {
+            checkTimeout();
+        }
+
+    };
+
     private void registerUnbalancedPopListener(Node<Statement, AbstractBoomerangSolver<W>> unbalancedPopPair,
             UnbalancedPopHandler<W> unbalancedPopInfo) {
         if (unbalancedPopPairs.contains(unbalancedPopPair)) {
@@ -393,42 +435,13 @@ public abstract class WeightedBoomerang<W extends Weight> {
     }
 
     protected ForwardBoomerangSolver<W> createForwardSolver(final ForwardQuery sourceQuery) {
-        final ForwardBoomerangSolver<W> solver = new ForwardBoomerangSolver<W>(icfg(), sourceQuery, genField, options,
-                createCallSummaries(sourceQuery, forwardCallSummaries),
-                createFieldSummaries(sourceQuery, forwardFieldSummaries)) {
+        final ForwardBoomerangSolver<W> solver = new DefaultForwardBoomerangSolver(sourceQuery);
+        solver.registerListener(createSyncPDSUpdateListener(sourceQuery));
+        return solver;
+    }
 
-            @Override
-            protected Collection<? extends State> getEmptyCalleeFlow(SootMethod caller, Stmt callSite, Val value,
-                    Stmt returnSite) {
-                return forwardEmptyCalleeFlow.getEmptyCalleeFlow(caller, callSite, value, returnSite);
-            }
-
-            @Override
-            protected WeightFunctions<Statement, Val, Statement, W> getCallWeights() {
-                return WeightedBoomerang.this.getForwardCallWeights(sourceQuery);
-            }
-
-            @Override
-            protected WeightFunctions<Statement, Val, Field, W> getFieldWeights() {
-                return WeightedBoomerang.this.getForwardFieldWeights();
-            }
-
-            @Override
-            public void addCallRule(Rule<Statement, INode<Val>, W> rule) {
-                if (preventCallRuleAdd(sourceQuery, rule)) {
-                    return;
-                }
-                super.addCallRule(rule);
-            }
-
-            @Override
-            protected void onManyStateListenerRegister() {
-                checkTimeout();
-            }
-
-        };
-
-        solver.registerListener(new SyncPDSUpdateListener<Statement, Val>() {
+    protected SyncPDSUpdateListener<Statement, Val> createSyncPDSUpdateListener(final ForwardQuery sourceQuery) {
+    	return new SyncPDSUpdateListener<Statement, Val>() {
             @Override
             public void onReachableNodeAdded(Node<Statement, Val> node) {
                 if (hasNoMethod(node)) {
@@ -449,9 +462,7 @@ public abstract class WeightedBoomerang<W extends Weight> {
                     // TODO
                 }
             }
-        });
-
-        return solver;
+        };
     }
 
     private NestedWeightedPAutomatons<Statement, INode<Val>, W> createCallSummaries(final Query sourceQuery,
