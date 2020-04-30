@@ -314,40 +314,51 @@ public abstract class WeightedBoomerang<W extends Weight> {
         this(new DefaultBoomerangOptions());
     }
 
+	protected class DefaultBackwardBoomerangSolver extends BackwardBoomerangSolver<W> {
+
+		public DefaultBackwardBoomerangSolver(final BackwardQuery backwardQuery) {
+			super(bwicfg(), backwardQuery, genField, WeightedBoomerang.this.options,
+					createCallSummaries(backwardQuery, backwardCallSummaries),
+					createFieldSummaries(backwardQuery, backwardFieldSummaries));
+		}
+
+        @Override
+        protected Collection<? extends State> computeCallFlow(SootMethod caller, Statement returnSite,
+                Statement callSite, InvokeExpr invokeExpr, Val fact, SootMethod callee, Stmt calleeSp) {
+            return super.computeCallFlow(caller, returnSite, callSite, invokeExpr, fact, callee, calleeSp);
+        }
+
+        @Override
+        protected Collection<? extends State> getEmptyCalleeFlow(SootMethod caller, Stmt callSite, Val value,
+                Stmt returnSite) {
+            return backwardEmptyCalleeFlow.getEmptyCalleeFlow(caller, callSite, value, returnSite);
+        }
+
+        @Override
+        protected WeightFunctions<Statement, Val, Field, W> getFieldWeights() {
+            return WeightedBoomerang.this.getBackwardFieldWeights();
+        }
+
+        @Override
+        protected WeightFunctions<Statement, Val, Statement, W> getCallWeights() {
+            return WeightedBoomerang.this.getBackwardCallWeights();
+        }
+
+        @Override
+        protected void onManyStateListenerRegister() {
+            checkTimeout();
+        }
+
+	}
+    
     protected AbstractBoomerangSolver<W> createBackwardSolver(final BackwardQuery backwardQuery) {
-        BackwardBoomerangSolver<W> solver = new BackwardBoomerangSolver<W>(bwicfg(), backwardQuery, genField, options,
-                createCallSummaries(backwardQuery, backwardCallSummaries),
-                createFieldSummaries(backwardQuery, backwardFieldSummaries)) {
+        BackwardBoomerangSolver<W> solver = new DefaultBackwardBoomerangSolver(backwardQuery);
+        solver.registerListener(createBackwardSyncPDSUpdateListener(solver, backwardQuery));
+        return solver;
+    }
 
-            @Override
-            protected Collection<? extends State> computeCallFlow(SootMethod caller, Statement returnSite,
-                    Statement callSite, InvokeExpr invokeExpr, Val fact, SootMethod callee, Stmt calleeSp) {
-                return super.computeCallFlow(caller, returnSite, callSite, invokeExpr, fact, callee, calleeSp);
-            }
-
-            @Override
-            protected Collection<? extends State> getEmptyCalleeFlow(SootMethod caller, Stmt callSite, Val value,
-                    Stmt returnSite) {
-                return backwardEmptyCalleeFlow.getEmptyCalleeFlow(caller, callSite, value, returnSite);
-            }
-
-            @Override
-            protected WeightFunctions<Statement, Val, Field, W> getFieldWeights() {
-                return WeightedBoomerang.this.getBackwardFieldWeights();
-            }
-
-            @Override
-            protected WeightFunctions<Statement, Val, Statement, W> getCallWeights() {
-                return WeightedBoomerang.this.getBackwardCallWeights();
-            }
-
-            @Override
-            protected void onManyStateListenerRegister() {
-                checkTimeout();
-            }
-
-        };
-        solver.registerListener(new SyncPDSUpdateListener<Statement, Val>() {
+    protected SyncPDSUpdateListener<Statement, Val> createBackwardSyncPDSUpdateListener(BackwardBoomerangSolver<W> solver, final BackwardQuery backwardQuery) {
+    	return new SyncPDSUpdateListener<Statement, Val>() {
             @Override
             public void onReachableNodeAdded(Node<Statement, Val> node) {
                 if (hasNoMethod(node)) {
@@ -391,13 +402,10 @@ public abstract class WeightedBoomerang<W extends Weight> {
                     }
                 }
             }
-
-        });
-
-        return solver;
+        };
     }
 
-    protected boolean hasNoMethod(Node<Statement, Val> node) {
+	protected boolean hasNoMethod(Node<Statement, Val> node) {
         if (icfg().getMethodOf(node.stmt().getUnit().get()) == null) {
             return true;
         }
@@ -436,11 +444,11 @@ public abstract class WeightedBoomerang<W extends Weight> {
 
     protected ForwardBoomerangSolver<W> createForwardSolver(final ForwardQuery sourceQuery) {
         final ForwardBoomerangSolver<W> solver = new DefaultForwardBoomerangSolver(sourceQuery);
-        solver.registerListener(createSyncPDSUpdateListener(sourceQuery));
+        solver.registerListener(createForwardSyncPDSUpdateListener(sourceQuery));
         return solver;
     }
 
-    protected SyncPDSUpdateListener<Statement, Val> createSyncPDSUpdateListener(final ForwardQuery sourceQuery) {
+    protected SyncPDSUpdateListener<Statement, Val> createForwardSyncPDSUpdateListener(final ForwardQuery sourceQuery) {
     	return new SyncPDSUpdateListener<Statement, Val>() {
             @Override
             public void onReachableNodeAdded(Node<Statement, Val> node) {
