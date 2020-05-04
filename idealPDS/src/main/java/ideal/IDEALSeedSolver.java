@@ -22,6 +22,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 
 import boomerang.BackwardQuery;
+import boomerang.BoomerangOptions;
 import boomerang.ForwardQuery;
 import boomerang.Query;
 import boomerang.WeightedBoomerang;
@@ -37,6 +38,7 @@ import boomerang.results.BackwardBoomerangResults;
 import boomerang.results.ForwardBoomerangResults;
 import boomerang.seedfactory.SeedFactory;
 import boomerang.solver.AbstractBoomerangSolver;
+import boomerang.solver.ForwardBoomerangSolver;
 import soot.SootMethod;
 import soot.Unit;
 import soot.jimple.Stmt;
@@ -290,6 +292,68 @@ public class IDEALSeedSolver<W extends Weight> {
         }
     }
 
+    protected class DefaultWeightedBoomerang extends WeightedBoomerang<W>  {
+
+    	protected Phases phase;
+
+        public DefaultWeightedBoomerang(BoomerangOptions boomerangOptions, Phases phase) {
+        	super(boomerangOptions);
+    		this.phase = phase;
+        }
+
+		@Override
+        public ObservableICFG<Unit, SootMethod> icfg() {
+            if (analysisDefinition.icfg() == null) {
+                // For Static ICFG use this line
+                analysisDefinition.icfg = new ObservableStaticICFG(new BoomerangICFG(false));
+            }
+            return analysisDefinition.icfg();
+        }
+
+        @Override
+        public Debugger<W> createDebugger() {
+            return analysisDefinition.debugger(IDEALSeedSolver.this);
+        }
+        
+        @Override
+        protected WeightFunctions<Statement, Val, Statement, W> getForwardCallWeights(ForwardQuery sourceQuery) {
+            if (sourceQuery.equals(seed))
+                return idealWeightFunctions;
+            return new OneWeightFunctions<>(zero, one);
+        }
+
+        @Override
+        protected WeightFunctions<Statement, Val, Field, W> getForwardFieldWeights() {
+            return new OneWeightFunctions<>(zero, one);
+        }
+
+        @Override
+        protected WeightFunctions<Statement, Val, Field, W> getBackwardFieldWeights() {
+            return new OneWeightFunctions<>(zero, one);
+        }
+
+        @Override
+        protected WeightFunctions<Statement, Val, Statement, W> getBackwardCallWeights() {
+            return new OneWeightFunctions<>(zero, one);
+        }
+
+        @Override
+        public SeedFactory<W> getSeedFactory() {
+            return seedFactory;
+        }
+
+        @Override
+        public boolean preventCallRuleAdd(ForwardQuery sourceQuery, Rule<Statement, INode<Val>, W> rule) {
+            if (phase.equals(Phases.ValueFlow) && sourceQuery.equals(seed)) {
+                if (preventStrongUpdateFlows(rule)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+    }
+
     public enum Phases {
         ObjectFlow, ValueFlow
     };
@@ -325,60 +389,8 @@ public class IDEALSeedSolver<W extends Weight> {
         return resultPhase2;
     }
 
-    private WeightedBoomerang<W> createSolver(Phases phase) {
-        return new WeightedBoomerang<W>(analysisDefinition.boomerangOptions()) {
-            @Override
-            public ObservableICFG<Unit, SootMethod> icfg() {
-                if (analysisDefinition.icfg() == null) {
-                    // For Static ICFG use this line
-                    analysisDefinition.icfg = new ObservableStaticICFG(new BoomerangICFG(false));
-                }
-                return analysisDefinition.icfg();
-            }
-
-            @Override
-            public Debugger<W> createDebugger() {
-                return analysisDefinition.debugger(IDEALSeedSolver.this);
-            }
-
-            @Override
-            protected WeightFunctions<Statement, Val, Statement, W> getForwardCallWeights(ForwardQuery sourceQuery) {
-                if (sourceQuery.equals(seed))
-                    return idealWeightFunctions;
-                return new OneWeightFunctions<>(zero, one);
-            }
-
-            @Override
-            protected WeightFunctions<Statement, Val, Field, W> getForwardFieldWeights() {
-                return new OneWeightFunctions<>(zero, one);
-            }
-
-            @Override
-            protected WeightFunctions<Statement, Val, Field, W> getBackwardFieldWeights() {
-                return new OneWeightFunctions<>(zero, one);
-            }
-
-            @Override
-            protected WeightFunctions<Statement, Val, Statement, W> getBackwardCallWeights() {
-                return new OneWeightFunctions<>(zero, one);
-            }
-
-            @Override
-            public SeedFactory<W> getSeedFactory() {
-                return seedFactory;
-            }
-
-            @Override
-            public boolean preventCallRuleAdd(ForwardQuery sourceQuery, Rule<Statement, INode<Val>, W> rule) {
-                if (phase.equals(Phases.ValueFlow) && sourceQuery.equals(seed)) {
-                    if (preventStrongUpdateFlows(rule)) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-
-        };
+    protected WeightedBoomerang<W> createSolver(Phases phase) {
+        return new DefaultWeightedBoomerang(analysisDefinition.boomerangOptions(), phase);
     }
 
     protected boolean preventStrongUpdateFlows(Rule<Statement, INode<Val>, W> rule) {
