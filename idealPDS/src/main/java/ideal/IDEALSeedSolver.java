@@ -63,7 +63,7 @@ import wpds.interfaces.WPAUpdateListener;
 
 public class IDEALSeedSolver<W extends Weight> {
 
-    private final IDEALAnalysisDefinition<W> analysisDefinition;
+    protected final IDEALAnalysisDefinition<W> analysisDefinition;
     private final ForwardQuery seed;
     private final IDEALWeightFunctions<W> idealWeightFunctions;
     private final W zero;
