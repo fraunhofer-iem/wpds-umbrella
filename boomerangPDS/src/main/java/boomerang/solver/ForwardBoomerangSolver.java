@@ -253,15 +253,15 @@ public abstract class ForwardBoomerangSolver<W extends Weight> extends AbstractB
                 return;
             }
             for (Unit next : icfg.getSuccsOf(curr)) {
-                handleSuccessor(node, curr, value, method, next);
+        		Stmt nextStmt = (Stmt) next;
+                handleSuccessor(node, curr, value, method, nextStmt);
             }
         }
     }
 
-	protected void handleSuccessor(Node<Statement, Val> node, Stmt curr, Val value, SootMethod method, Unit next) {
-		Stmt nextStmt = (Stmt) next;
+	protected void handleSuccessor(Node<Statement, Val> node, Stmt curr, Val value, SootMethod method, Stmt nextStmt) {
 		if (query.getType() instanceof NullType && curr instanceof IfStmt
-		        && killAtIfStmt((IfStmt) curr, value, next)) {
+		        && killAtIfStmt((IfStmt) curr, value, nextStmt)) {
 		    return;
 		}
 		if (nextStmt.containsInvokeExpr() && (isParameter(value, nextStmt) || value.isStatic())) {
