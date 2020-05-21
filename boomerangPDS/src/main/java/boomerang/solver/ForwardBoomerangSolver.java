@@ -287,7 +287,7 @@ public abstract class ForwardBoomerangSolver<W extends Weight> extends AbstractB
      *            The successor statement of the if-stmt
      * @return true if the Val fact shall be killed
      */
-    private boolean killAtIfStmt(IfStmt ifStmt, Val fact, Unit succ) {
+    protected boolean killAtIfStmt(IfStmt ifStmt, Val fact, Unit succ) {
         Stmt target = ifStmt.getTarget();
         Value condition = ifStmt.getCondition();
         if (condition instanceof JEqExpr) {
