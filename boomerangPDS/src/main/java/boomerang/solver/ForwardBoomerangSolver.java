@@ -433,7 +433,7 @@ public abstract class ForwardBoomerangSolver<W extends Weight> extends AbstractB
         return out;
     }
 
-    private boolean isInstanceOfStatement(Stmt curr, Val fact) {
+    protected boolean isInstanceOfStatement(Stmt curr, Val fact) {
         if (curr instanceof AssignStmt) {
             AssignStmt as = (AssignStmt) curr;
             if (as.getRightOp() instanceof InstanceOfExpr && query.getType() instanceof NullType) {
