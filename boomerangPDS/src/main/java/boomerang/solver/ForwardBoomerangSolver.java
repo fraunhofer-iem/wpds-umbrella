@@ -253,22 +253,26 @@ public abstract class ForwardBoomerangSolver<W extends Weight> extends AbstractB
                 return;
             }
             for (Unit next : icfg.getSuccsOf(curr)) {
-                Stmt nextStmt = (Stmt) next;
-                if (query.getType() instanceof NullType && curr instanceof IfStmt
-                        && killAtIfStmt((IfStmt) curr, value, next)) {
-                    continue;
-                }
-                if (nextStmt.containsInvokeExpr() && (isParameter(value, nextStmt) || value.isStatic())) {
-                    callFlow(method, node, nextStmt, nextStmt.getInvokeExpr());
-                } else if (!killFlow(method, nextStmt, value)) {
-                    Collection<State> out = computeNormalFlow(method, curr, value, nextStmt);
-                    for (State s : out) {
-                        propagate(node, s);
-                    }
-                }
+        		Stmt nextStmt = (Stmt) next;
+                handleSuccessor(node, curr, value, method, nextStmt);
             }
         }
     }
+
+	protected void handleSuccessor(Node<Statement, Val> node, Stmt curr, Val value, SootMethod method, Stmt nextStmt) {
+		if (query.getType() instanceof NullType && curr instanceof IfStmt
+		        && killAtIfStmt((IfStmt) curr, value, nextStmt)) {
+		    return;
+		}
+		if (nextStmt.containsInvokeExpr() && (isParameter(value, nextStmt) || value.isStatic())) {
+		    callFlow(method, node, nextStmt, nextStmt.getInvokeExpr());
+		} else if (!killFlow(method, nextStmt, value)) {
+		    Collection<State> out = computeNormalFlow(method, curr, value, nextStmt);
+		    for (State s : out) {
+		        propagate(node, s);
+		    }
+		}
+	}
 
     /**
      * This method kills a data-flow at an if-stmt, it is assumed that the propagated "allocation" site is x = null and
@@ -283,7 +287,7 @@ public abstract class ForwardBoomerangSolver<W extends Weight> extends AbstractB
      *            The successor statement of the if-stmt
      * @return true if the Val fact shall be killed
      */
-    private boolean killAtIfStmt(IfStmt ifStmt, Val fact, Unit succ) {
+    protected boolean killAtIfStmt(IfStmt ifStmt, Val fact, Unit succ) {
         Stmt target = ifStmt.getTarget();
         Value condition = ifStmt.getCondition();
         if (condition instanceof JEqExpr) {
@@ -429,7 +433,7 @@ public abstract class ForwardBoomerangSolver<W extends Weight> extends AbstractB
         return out;
     }
 
-    private boolean isInstanceOfStatement(Stmt curr, Val fact) {
+    protected boolean isInstanceOfStatement(Stmt curr, Val fact) {
         if (curr instanceof AssignStmt) {
             AssignStmt as = (AssignStmt) curr;
             if (as.getRightOp() instanceof InstanceOfExpr && query.getType() instanceof NullType) {

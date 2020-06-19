@@ -47,7 +47,7 @@ public class IDEALAnalysis<W extends Weight> {
     public static boolean PRINT_OPTIONS = false;
 
     protected final IDEALAnalysisDefinition<W> analysisDefinition;
-    private final SeedFactory<W> seedFactory;
+    protected final SeedFactory<W> seedFactory;
     private int seedCount;
     private Map<WeightedForwardQuery<W>, Stopwatch> analysisTime = new HashMap<>();
     private Set<WeightedForwardQuery<W>> timedoutSeeds = new HashSet<>();
@@ -96,7 +96,7 @@ public class IDEALAnalysis<W extends Weight> {
     }
 
     public ForwardBoomerangResults<W> run(ForwardQuery seed) {
-        IDEALSeedSolver<W> idealAnalysis = new IDEALSeedSolver<W>(analysisDefinition, seed, seedFactory);
+        IDEALSeedSolver<W> idealAnalysis = createSolver(seed);
         ForwardBoomerangResults<W> res;
         try {
             if (analysisDefinition.icfg() != null) {
@@ -110,6 +110,10 @@ public class IDEALAnalysis<W extends Weight> {
         analysisDefinition.getResultHandler().report((WeightedForwardQuery) seed, res);
         return res;
     }
+
+	protected IDEALSeedSolver<W> createSolver(ForwardQuery seed) {
+		return new IDEALSeedSolver<>(analysisDefinition, seed, seedFactory);
+	}
 
     private void printOptions() {
         if (PRINT_OPTIONS) {

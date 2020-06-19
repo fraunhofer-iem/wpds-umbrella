@@ -17,7 +17,7 @@ public class DataFlowPathWeight extends Weight {
      */
     private Set<Statement> allStatements;
 
-    /**
+	/**
      * A subset of {@link #allStatements} that lists only the last usage of a variable. When data-flow at branches is
      * joined, the set can contain multiple statement that use the variable
      */
@@ -35,8 +35,8 @@ public class DataFlowPathWeight extends Weight {
     }
 
     public DataFlowPathWeight(Statement relevantStatement) {
-        allStatements = Sets.newHashSet();
-        lastStatements = Sets.newHashSet();
+        allStatements = Sets.newLinkedHashSet();
+        lastStatements = Sets.newLinkedHashSet();
         allStatements.add(relevantStatement);
         lastStatements.add(relevantStatement);
     }
@@ -53,7 +53,7 @@ public class DataFlowPathWeight extends Weight {
         if (other.equals(zero()) || this.equals(zero())) {
             return zero();
         }
-        Set<Statement> newAllStatements = Sets.newHashSet();
+        Set<Statement> newAllStatements = Sets.newLinkedHashSet();
         newAllStatements.addAll(allStatements);
         newAllStatements.addAll(other.allStatements);
         return new DataFlowPathWeight(newAllStatements, other.lastStatements);
@@ -117,4 +117,13 @@ public class DataFlowPathWeight extends Weight {
     public String toString() {
         return "\nLast relevant: " + lastStatements + "\nAll statements: " + allStatements;
     }
+
+    public Set<Statement> getAllStatements() {
+		return allStatements;
+	}
+
+	public Set<Statement> getLastStatements() {
+		return lastStatements;
+	}
+
 }
