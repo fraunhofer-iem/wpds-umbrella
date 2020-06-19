@@ -13,18 +13,20 @@ package boomerang;
 
 import boomerang.stats.IBoomerangStats;
 
-public class BoomerangTimeoutException extends RuntimeException {
+public class BoomerangTimeoutException extends BoomerangAbortedException  {
 
-    private IBoomerangStats stats;
+    private static final long serialVersionUID = 3767732949845559629L;
+
     private long elapsed;
 
-    BoomerangTimeoutException(long elapsed, IBoomerangStats stats) {
+    public BoomerangTimeoutException(long elapsed, IBoomerangStats stats) {
+        super(stats);
         this.elapsed = elapsed;
-        this.stats = stats;
     }
 
     @Override
     public String toString() {
-        return "Boomerang Timeout after " + elapsed + "ms\n " + stats;
+        return "Boomerang Timeout after " + elapsed + "ms\n " + getStats();
     }
 }
+
